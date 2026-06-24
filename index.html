@@ -264,41 +264,14 @@
     .hero-reviews-col.interacted .hero-reviews-hint { opacity: 0; pointer-events: none; }
     .hero-reviews-carousel {
       position: relative;
-      /* stretch the carousel toward the right edge of the page (on any screen
-         width), leaving a small gap so the fade stays on-page */
       margin-right: calc((min(100vw, 1200px) - 100vw) / 2 - 6px);
       margin-left: -64px;
+      overflow: hidden;
+      -webkit-mask-image: linear-gradient(to right, transparent, #000 60px, #000 calc(100% - 60px), transparent);
+      mask-image: linear-gradient(to right, transparent, #000 60px, #000 calc(100% - 60px), transparent);
     }
-    /* prev / next arrow buttons */
-    .hero-reviews-arrow {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      z-index: 3;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(10,10,10,0.75);
-      backdrop-filter: blur(6px);
-      color: var(--white);
-      font-size: 15px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      opacity: 0;
-      transition: all 0.25s ease;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
-    }
-    .hero-reviews-carousel:hover .hero-reviews-arrow { opacity: 1; }
-    .hero-reviews-arrow:hover {
-      background: var(--orange);
-      border-color: var(--orange);
-      transform: translateY(-50%) scale(1.12);
-    }
-    .hero-reviews-arrow.prev { left: 6px; }
-    .hero-reviews-arrow.next { right: 18px; }
+    /* arrows & "drag" hint not used in the auto-marquee */
+    .hero-reviews-arrow, .hero-reviews-hint { display: none !important; }
     .hero-reviews {
       position: relative;
       display: grid;
@@ -306,16 +279,17 @@
       grid-template-rows: repeat(2, auto);
       grid-auto-columns: 320px;
       gap: 14px 16px;
-      overflow-x: auto;
-      scroll-behavior: auto;
-      touch-action: pan-x;
-      -webkit-overflow-scrolling: touch;
-      padding: 16px 150px 16px 30px;
-      cursor: grab;
-      scrollbar-width: thin;
-      scrollbar-color: transparent transparent;
+      width: max-content;
+      padding: 16px 0;
+      animation: reviewsMarquee var(--rev-dur, 60s) linear infinite;
+      will-change: transform;
     }
-    .hero-reviews:hover { scrollbar-color: rgba(249,115,22,0.55) transparent; }
+    @keyframes reviewsMarquee {
+      from { transform: translateX(0); }
+      to   { transform: translateX(calc(-1 * var(--rev-shift, 50%))); }
+    }
+    .hero-reviews-carousel:hover .hero-reviews { animation-play-state: paused; }
+    @media (prefers-reduced-motion: reduce) { .hero-reviews { animation: none; } }
     /* Fades reveal the real hero background through the cards, and only appear
        on the side(s) where there's more to scroll. */
     .hero-reviews.fade-left:not(.fade-right) {
@@ -2044,6 +2018,12 @@
     #gallery .section-title { color: var(--white); }
     #gallery .section-desc { color: rgba(255,255,255,0.55); }
     #gallery .section-eyebrow { background: rgba(249,115,22,0.15); color: var(--orange); }
+    /* clipping viewport: NOT a scroll box, so vertical swipes scroll the page */
+    .gallery-viewport {
+      overflow: hidden;
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 90px, #000 calc(100% - 90px), transparent 100%);
+      mask-image: linear-gradient(to right, transparent 0, #000 90px, #000 calc(100% - 90px), transparent 100%);
+    }
     .gallery-grid {
       position: relative;
       display: grid;
@@ -2051,17 +2031,17 @@
       grid-template-rows: repeat(2, auto);
       grid-auto-columns: 240px;
       gap: 12px;
-      overflow-x: auto;
-      touch-action: pan-x;
-      -webkit-overflow-scrolling: touch;
-      padding: 32px 2px;
-      cursor: grab;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 170px, #000 calc(100% - 170px), transparent 100%);
-      mask-image: linear-gradient(to right, transparent 0, #000 170px, #000 calc(100% - 170px), transparent 100%);
+      width: max-content;
+      padding: 14px 0;
+      animation: galleryMarquee var(--gal-dur, 80s) linear infinite;
+      will-change: transform;
     }
-    .gallery-grid::-webkit-scrollbar { display: none; }
+    @keyframes galleryMarquee {
+      from { transform: translateX(0); }
+      to   { transform: translateX(calc(-1 * var(--gal-shift, 50%))); }
+    }
+    .gallery-viewport:hover .gallery-grid { animation-play-state: paused; }
+    @media (prefers-reduced-motion: reduce) { .gallery-grid { animation: none; } }
     /* "more below" scroll cue */
     .scroll-cue {
       display: flex;
@@ -2626,7 +2606,7 @@
         <h2 class="section-title">See the <span>Difference</span></h2>
         <p class="section-desc">Real trucks, real crews, real results from jobs across Elkhart &amp; St. Joseph County. Tap any photo to enlarge.</p>
       </div>
-      <div class="gallery-grid fade-up fade-up-delay-1" id="galleryGrid"></div>
+      <div class="gallery-viewport fade-up fade-up-delay-1"><div class="gallery-grid" id="galleryGrid"></div></div>
       <a href="#pricing" class="scroll-cue" aria-label="More below — see pricing">
         <span>Keep Scrolling — More Below</span>
         <i class="fas fa-chevron-down"></i>
@@ -3026,106 +3006,27 @@
         ? '0 4px 32px rgba(0,0,0,0.5)'
         : '0 2px 20px rgba(0,0,0,0.4)';
     });
-    // ── Hero reviews carousel: auto-scroll + native touch + mouse drag + arrows
+    // ── Hero reviews: seamless CSS marquee (auto-scrolls via CSS animation —
+    //    works reliably on mobile; no dependency on scrollLeft)
     (function () {
       const track = document.getElementById('heroReviews');
-      const col = document.getElementById('heroReviewsCol');
-      const prev = document.getElementById('reviewsPrev');
-      const next = document.getElementById('reviewsNext');
       if (!track) return;
-
-      // Clone the cards once for a seamless endless loop
+      // duplicate the cards so translateX(-1 set) loops with no seam
       const originals = Array.prototype.slice.call(track.querySelectorAll('.hero-review-chip'));
       originals.forEach(function (ch) { track.appendChild(ch.cloneNode(true)); });
 
-      let loopWidth = 0;
-      function measureLoop() {
+      function setup() {
         const chips = track.querySelectorAll('.hero-review-chip');
-        loopWidth = (chips.length > originals.length) ? chips[originals.length].offsetLeft - chips[0].offsetLeft : 0;
-        if (!loopWidth && chips.length) { // fallback (e.g. before images/layout settle)
-          const cs = getComputedStyle(track);
-          const gap = parseFloat(cs.columnGap || cs.gap) || 16;
-          loopWidth = (originals.length / 2) * (chips[0].offsetWidth + gap);
+        if (chips.length <= originals.length) return;
+        const shift = chips[originals.length].offsetLeft - chips[0].offsetLeft; // width of one full set
+        if (shift > 0) {
+          track.style.setProperty('--rev-shift', shift + 'px');
+          track.style.setProperty('--rev-dur', Math.max(20, Math.round(shift / 45)) + 's'); // ~45px/sec
         }
       }
-      measureLoop();
-      window.addEventListener('resize', measureLoop);
-      window.addEventListener('load', measureLoop);
-
-      function updateFades() {
-        const max = track.scrollWidth - track.clientWidth;
-        track.classList.toggle('fade-left', track.scrollLeft > 2);
-        track.classList.toggle('fade-right', track.scrollLeft < max - 2);
-      }
-
-      const SPEED = 0.4;          // ~24px/sec
-      const PAUSE_MS = 1500;      // pause auto-scroll this long after any user input
-      let pos = 0, started = false, lastInput = -99999, hovering = false;
-      function noteInput() { lastInput = Date.now(); if (col) col.classList.add('interacted'); }
-      // mouse-only hover pause (touch never sets this, so it can't get stuck)
-      track.addEventListener('pointerover', function (e) { if (e.pointerType === 'mouse') hovering = !!(e.target.closest && e.target.closest('.hero-review-chip')); });
-      track.addEventListener('pointerout', function (e) { if (e.pointerType === 'mouse') hovering = false; });
-
-      // Arrow buttons
-      function chipStep() {
-        const chip = track.querySelector('.hero-review-chip');
-        const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap || 16) || 16;
-        return chip ? chip.offsetWidth + gap : 260;
-      }
-      if (next) next.addEventListener('click', function () { noteInput(); track.scrollBy({ left: chipStep(), behavior: 'smooth' }); });
-      if (prev) prev.addEventListener('click', function () { noteInput(); track.scrollBy({ left: -chipStep(), behavior: 'smooth' }); });
-
-      // Mouse drag (touch is handled natively by the browser via touch-action: pan-x)
-      let mdrag = false, sx = 0, ss = 0;
-      track.addEventListener('pointerdown', function (e) {
-        noteInput();
-        if (e.pointerType === 'mouse') { mdrag = true; sx = e.clientX; ss = track.scrollLeft; track.classList.add('dragging'); }
-      });
-      track.addEventListener('pointermove', function (e) {
-        if (!mdrag) return;
-        noteInput();
-        let target = ss - (e.clientX - sx);
-        if (loopWidth > 0) { while (target < 0) { target += loopWidth; ss += loopWidth; } while (target >= loopWidth) { target -= loopWidth; ss -= loopWidth; } }
-        track.scrollLeft = target; pos = target;
-      });
-      window.addEventListener('pointerup', function () { if (mdrag) { mdrag = false; track.classList.remove('dragging'); } });
-
-      // Horizontal mouse-wheel / trackpad scrolls the strip; vertical scrolls the page
-      track.addEventListener('wheel', function (e) {
-        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-        e.preventDefault(); noteInput();
-        let target = track.scrollLeft + e.deltaX;
-        if (loopWidth > 0) { if (target < 0) target += loopWidth; else if (target >= loopWidth) target -= loopWidth; }
-        track.scrollLeft = target; pos = target;
-      }, { passive: false });
-
-      // User / native (touch, momentum) scroll: keep auto paused, wrap endlessly both ways
-      track.addEventListener('scroll', function () {
-        updateFades();
-        if (Date.now() - lastInput < PAUSE_MS) {
-          noteInput();
-          if (loopWidth > 0) {
-            if (track.scrollLeft <= 0) track.scrollLeft += loopWidth;
-            else if (track.scrollLeft >= loopWidth) track.scrollLeft -= loopWidth;
-          }
-          pos = track.scrollLeft;
-        }
-      }, { passive: true });
-
-      // Auto-scroll loop (float accumulator; mobile rounds scrollLeft to whole px)
-      function frame() {
-        if (!loopWidth) measureLoop();
-        if (started && loopWidth > 0 && !hovering && (Date.now() - lastInput > PAUSE_MS)) {
-          pos += SPEED;
-          if (pos >= loopWidth) pos -= loopWidth;
-          track.scrollLeft = pos;
-          updateFades();
-        }
-        requestAnimationFrame(frame);
-      }
-      setTimeout(function () { started = true; pos = track.scrollLeft; }, 3000);
-      requestAnimationFrame(frame);
-      updateFades();
+      setup();
+      window.addEventListener('load', setup);
+      window.addEventListener('resize', setup);
     })();
 
     // ── Vanilla JS date picker calendar
@@ -3310,97 +3211,25 @@
         measure();
       }
 
-      let centers = [];
+      // Size the CSS marquee: set the exact one-set shift distance + a speed
       function measure() {
         const items = track.children;
-        loopWidth = items.length > order.length ? items[order.length].offsetLeft - items[0].offsetLeft : 0;
-        if (!loopWidth && items.length) {
-          // fallback: columns (2 rows) * (item width + gap)
-          const cs = getComputedStyle(track);
-          const gap = parseFloat(cs.columnGap || cs.gap) || 12;
-          loopWidth = (order.length / 2) * (items[0].offsetWidth + gap);
-        }
-        centers = [];
-        for (let k = 0; k < items.length; k++) centers[k] = items[k].offsetLeft + items[k].offsetWidth / 2;
-      }
-      // Shrink + fade items toward the edges, full size in the middle
-      function updateScale() {
-        const half = track.clientWidth / 2 || 1;
-        const viewCenter = track.scrollLeft + half;
-        const items = track.children;
-        for (let k = 0; k < items.length; k++) {
-          const t = Math.min(Math.abs(centers[k] - viewCenter) / half, 1);
-          items[k].style.transform = 'scale(' + (1.08 - 0.44 * t).toFixed(3) + ')';
-          items[k].style.opacity = (1 - 0.62 * t).toFixed(3);
+        if (items.length <= order.length) return;
+        const shift = items[order.length].offsetLeft - items[0].offsetLeft; // one full set
+        if (shift > 0) {
+          track.style.setProperty('--gal-shift', shift + 'px');
+          track.style.setProperty('--gal-dur', Math.max(28, Math.round(shift / 45)) + 's'); // ~45px/sec
         }
       }
-      buildTrack();
-      window.addEventListener('resize', function () { measure(); updateScale(); });
-      window.addEventListener('load', function () { measure(); updateScale(); });
+      buildTrack();             // builds items + clones, then calls measure()
+      window.addEventListener('load', measure);
+      window.addEventListener('resize', measure);
 
-      const PAUSE_MS = 1500;        // pause auto after any user input
-      let pos = 0, lastInput = -99999, hovering = false, moved = 0;
-      function noteInput() { lastInput = Date.now(); }
-
-      // auto-scroll loop (float accumulator; mobile rounds scrollLeft to whole px)
-      (function loop() {
-        if (!loopWidth) measure();
-        if (loopWidth > 0 && !hovering && (Date.now() - lastInput > PAUSE_MS)) {
-          pos += SPEED;
-          if (pos >= loopWidth) pos -= loopWidth;
-          track.scrollLeft = pos;
-        }
-        updateScale();
-        requestAnimationFrame(loop);
-      })();
-
-      // mouse-only hover pause (touch never sets this, so it can't get stuck)
-      track.addEventListener('pointerover', function (e) { if (e.pointerType === 'mouse') hovering = !!(e.target.closest && e.target.closest('.gallery-item')); });
-      track.addEventListener('pointerout', function (e) { if (e.pointerType === 'mouse') hovering = false; });
-
-      // Mouse drag (touch is handled natively by the browser via touch-action: pan-x)
-      let mdrag = false, sx = 0, ss = 0;
-      track.addEventListener('pointerdown', function (e) {
-        noteInput(); moved = 0;
-        if (e.pointerType === 'mouse') { mdrag = true; sx = e.clientX; ss = track.scrollLeft; track.classList.add('dragging'); }
-      });
-      track.addEventListener('pointermove', function (e) {
-        if (!mdrag) return;
-        noteInput();
-        const dx = e.clientX - sx; moved = Math.abs(dx);
-        let target = ss - dx;
-        if (loopWidth > 0) { while (target < 0) { target += loopWidth; ss += loopWidth; } while (target >= loopWidth) { target -= loopWidth; ss -= loopWidth; } }
-        track.scrollLeft = target; pos = target;
-      });
-      window.addEventListener('pointerup', function () { if (mdrag) { mdrag = false; track.classList.remove('dragging'); } });
-
-      // Tap / click a photo to open the lightbox (a drag won't trigger it)
+      // Tap a photo to open the lightbox (vertical swipes just scroll the page)
       track.addEventListener('click', function (e) {
-        if (moved > 6) { moved = 0; return; }
         const it = e.target.closest ? e.target.closest('.gallery-item') : null;
         if (it && it.dataset.index != null) openLightbox(parseInt(it.dataset.index, 10));
       });
-
-      // User / native (touch, momentum) scroll: pause auto, wrap endlessly both ways
-      track.addEventListener('scroll', function () {
-        if (Date.now() - lastInput < PAUSE_MS) {
-          noteInput();
-          if (loopWidth > 0) {
-            if (track.scrollLeft <= 0) track.scrollLeft += loopWidth;
-            else if (track.scrollLeft >= loopWidth) track.scrollLeft -= loopWidth;
-          }
-          pos = track.scrollLeft;
-        }
-      }, { passive: true });
-
-      // Horizontal wheel/trackpad scrolls the strip; vertical scrolls the page
-      track.addEventListener('wheel', function (e) {
-        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-        e.preventDefault(); noteInput();
-        let target = track.scrollLeft + e.deltaX;
-        if (loopWidth > 0) { if (target < 0) target += loopWidth; else if (target >= loopWidth) target -= loopWidth; }
-        track.scrollLeft = target; pos = target;
-      }, { passive: false });
 
       document.getElementById('lbClose').addEventListener('click', closeLightbox);
       document.getElementById('lbPrev').addEventListener('click', function (e) { e.stopPropagation(); step(-1); });
