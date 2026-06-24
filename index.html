@@ -307,10 +307,10 @@
       grid-auto-columns: 320px;
       gap: 14px 16px;
       overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      scroll-behavior: smooth;
+      scroll-behavior: auto;
+      touch-action: pan-x;
+      -webkit-overflow-scrolling: touch;
       padding: 16px 150px 16px 30px;
-      scroll-padding: 0 30px;
       cursor: grab;
       scrollbar-width: thin;
       scrollbar-color: transparent transparent;
@@ -1922,8 +1922,6 @@
       #navbar { padding: 0 16px; }
     }
     @media (max-width: 600px) {
-      /* show everything instantly on phones — no waiting on the scroll-reveal */
-      .js .fade-up { opacity: 1 !important; transform: none !important; transition: none !important; }
       .hero-inner { padding: 96px 18px 48px; gap: 30px; }
       .hero-title { letter-spacing: -1px; }
       .hero-subtitle { font-size: 16px; }
@@ -2054,6 +2052,8 @@
       grid-auto-columns: 240px;
       gap: 12px;
       overflow-x: auto;
+      touch-action: pan-x;
+      -webkit-overflow-scrolling: touch;
       padding: 32px 2px;
       cursor: grab;
       scrollbar-width: none;
@@ -2306,19 +2306,19 @@
     <div class="hero-inner">
       <!-- LEFT: headline + CTAs -->
       <div class="hero-content">
-        <div class="hero-badge fade-up">
+        <div class="hero-badge">
           <i class="fas fa-bolt"></i>
           Same-Day Service Available
         </div>
-        <h1 class="hero-title fade-up fade-up-delay-1">
+        <h1 class="hero-title">
           Elkhart's Most<br>
           <span class="highlight">Trusted</span> Junk<br>
           Removal Team
         </h1>
-        <p class="hero-subtitle fade-up fade-up-delay-2">
+        <p class="hero-subtitle">
           Fast, affordable, and stress-free junk removal in Elkhart &amp; St. Joseph County, Indiana. We haul it — you forget it.
         </p>
-        <div class="hero-stats fade-up fade-up-delay-3">
+        <div class="hero-stats">
           <div class="hero-stat-item">
             <span class="hero-stat-num">500+</span>
             <span class="hero-stat-label">Jobs Completed</span>
@@ -2336,7 +2336,7 @@
             <span class="hero-stat-label">Avg. Response</span>
           </div>
         </div>
-        <div class="hero-ctas fade-up fade-up-delay-4">
+        <div class="hero-ctas">
           <a href="#quote" class="btn btn-orange btn-lg">
             <i class="fas fa-clipboard-check"></i> Get My Free Quote
           </a>
@@ -2346,7 +2346,7 @@
         </div>
       </div>
       <!-- RIGHT: reviews carousel -->
-      <div class="hero-reviews-col fade-up fade-up-delay-2" id="heroReviewsCol">
+      <div class="hero-reviews-col" id="heroReviewsCol">
         <div class="hero-reviews-topline">
           <div class="hero-reviews-label">⭐ What our customers say</div>
           <span class="hero-reviews-hint">Drag to explore <i class="fas fa-arrow-right-long"></i></span>
@@ -3026,119 +3026,104 @@
         ? '0 4px 32px rgba(0,0,0,0.5)'
         : '0 2px 20px rgba(0,0,0,0.4)';
     });
-    // ── Hero reviews carousel: arrows + drag-to-scroll
+    // ── Hero reviews carousel: auto-scroll + native touch + mouse drag + arrows
     (function () {
       const track = document.getElementById('heroReviews');
       const col = document.getElementById('heroReviewsCol');
       const prev = document.getElementById('reviewsPrev');
       const next = document.getElementById('reviewsNext');
       if (!track) return;
-      const carousel = track.closest('.hero-reviews-carousel');
 
-      function chipStep() {
-        const chip = track.querySelector('.hero-review-chip');
-        const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap || 16) || 16;
-        return chip ? chip.offsetWidth + gap : 320;
+      // Clone the cards once for a seamless endless loop
+      const originals = Array.prototype.slice.call(track.querySelectorAll('.hero-review-chip'));
+      originals.forEach(function (ch) { track.appendChild(ch.cloneNode(true)); });
+
+      let loopWidth = 0;
+      function measureLoop() {
+        const chips = track.querySelectorAll('.hero-review-chip');
+        loopWidth = (chips.length > originals.length) ? chips[originals.length].offsetLeft - chips[0].offsetLeft : 0;
+        if (!loopWidth && chips.length) { // fallback (e.g. before images/layout settle)
+          const cs = getComputedStyle(track);
+          const gap = parseFloat(cs.columnGap || cs.gap) || 16;
+          loopWidth = (originals.length / 2) * (chips[0].offsetWidth + gap);
+        }
       }
-      function markInteracted() { col && col.classList.add('interacted'); }
+      measureLoop();
+      window.addEventListener('resize', measureLoop);
+      window.addEventListener('load', measureLoop);
 
-      if (next) next.addEventListener('click', function () {
-        track.scrollBy({ left: chipStep(), behavior: 'smooth' });
-        markInteracted();
-      });
-      if (prev) prev.addEventListener('click', function () {
-        track.scrollBy({ left: -chipStep(), behavior: 'smooth' });
-        markInteracted();
-      });
-
-      // Drag / swipe to scroll (pointer events cover mouse + touch)
-      let isDown = false, startX = 0, startScroll = 0, moved = 0;
-      track.addEventListener('pointerdown', function (e) {
-        isDown = true;
-        moved = 0;
-        startX = e.clientX;
-        startScroll = track.scrollLeft;
-        track.classList.add('dragging');
-        track.setPointerCapture && track.setPointerCapture(e.pointerId);
-      });
-      track.addEventListener('pointermove', function (e) {
-        if (!isDown) return;
-        const dx = e.clientX - startX;
-        moved = Math.abs(dx);
-        track.scrollLeft = startScroll - dx;
-        if (moved > 4) markInteracted();
-      });
-      function endDrag() {
-        if (!isDown) return;
-        isDown = false;
-        track.classList.remove('dragging');
-      }
-      track.addEventListener('pointerup', endDrag);
-      track.addEventListener('pointercancel', endDrag);
-      track.addEventListener('pointerleave', endDrag);
-      // Prevent a drag from triggering a click on links/chips
-      track.addEventListener('click', function (e) {
-        if (moved > 6) { e.preventDefault(); e.stopPropagation(); }
-      }, true);
-
-      // Hide the hint once the user scrolls by any means
-      track.addEventListener('scroll', markInteracted, { passive: true, once: true });
-
-      // Show edge fades only where there's more content to scroll to
       function updateFades() {
         const max = track.scrollWidth - track.clientWidth;
         track.classList.toggle('fade-left', track.scrollLeft > 2);
         track.classList.toggle('fade-right', track.scrollLeft < max - 2);
       }
-      track.addEventListener('scroll', updateFades, { passive: true });
-      window.addEventListener('resize', updateFades);
-      updateFades();
 
-      // Clone the cards once so the marquee can loop endlessly with no seam
-      const originals = Array.prototype.slice.call(track.querySelectorAll('.hero-review-chip'));
-      originals.forEach(function (ch) { track.appendChild(ch.cloneNode(true)); });
-      let loopWidth = 0;
-      function measureLoop() {
-        const chips = track.querySelectorAll('.hero-review-chip');
-        loopWidth = (chips.length > originals.length)
-          ? chips[originals.length].offsetLeft - chips[0].offsetLeft
-          : 0;
-      }
-      measureLoop();
-      window.addEventListener('resize', measureLoop);
+      const SPEED = 0.4;          // ~24px/sec
+      const PAUSE_MS = 1500;      // pause auto-scroll this long after any user input
+      let pos = 0, started = false, lastInput = -99999, hovering = false;
+      function noteInput() { lastInput = Date.now(); if (col) col.classList.add('interacted'); }
+      track.addEventListener('mouseover', function (e) { hovering = !!(e.target.closest && e.target.closest('.hero-review-chip')); });
+      track.addEventListener('mouseleave', function () { hovering = false; });
 
-      // Slow endless auto-scroll, starting 3s after load.
-      // Hovering / pressing freezes it in place (snapping stays off so it
-      // never jumps back).
-      let started = false, isHover = false, isPressing = false;
-      let pos = 0; // float accumulator (mobile rounds scrollLeft to whole px)
-      const SPEED = 0.4; // px per frame (~24px/sec)
-      function refreshAuto() {
-        // keep snapping disabled the whole time it's animating so a pause
-        // never snaps the position back to a card edge
-        track.classList.toggle('autoscrolling', started);
+      // Arrow buttons
+      function chipStep() {
+        const chip = track.querySelector('.hero-review-chip');
+        const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap || 16) || 16;
+        return chip ? chip.offsetWidth + gap : 260;
       }
+      if (next) next.addEventListener('click', function () { noteInput(); track.scrollBy({ left: chipStep(), behavior: 'smooth' }); });
+      if (prev) prev.addEventListener('click', function () { noteInput(); track.scrollBy({ left: -chipStep(), behavior: 'smooth' }); });
+
+      // Mouse drag (touch is handled natively by the browser via touch-action: pan-x)
+      let mdrag = false, sx = 0, ss = 0;
+      track.addEventListener('pointerdown', function (e) {
+        noteInput();
+        if (e.pointerType === 'mouse') { mdrag = true; sx = e.clientX; ss = track.scrollLeft; track.classList.add('dragging'); }
+      });
+      track.addEventListener('pointermove', function (e) {
+        if (!mdrag) return;
+        noteInput();
+        let target = ss - (e.clientX - sx);
+        if (loopWidth > 0) { while (target < 0) { target += loopWidth; ss += loopWidth; } while (target >= loopWidth) { target -= loopWidth; ss -= loopWidth; } }
+        track.scrollLeft = target; pos = target;
+      });
+      window.addEventListener('pointerup', function () { if (mdrag) { mdrag = false; track.classList.remove('dragging'); } });
+
+      // Horizontal mouse-wheel / trackpad scrolls the strip; vertical scrolls the page
+      track.addEventListener('wheel', function (e) {
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+        e.preventDefault(); noteInput();
+        let target = track.scrollLeft + e.deltaX;
+        if (loopWidth > 0) { if (target < 0) target += loopWidth; else if (target >= loopWidth) target -= loopWidth; }
+        track.scrollLeft = target; pos = target;
+      }, { passive: false });
+
+      // User / native (touch, momentum) scroll: keep auto paused, wrap endlessly both ways
+      track.addEventListener('scroll', function () {
+        updateFades();
+        if (Date.now() - lastInput < PAUSE_MS) {
+          noteInput();
+          if (loopWidth > 0) {
+            if (track.scrollLeft <= 0) track.scrollLeft += loopWidth;
+            else if (track.scrollLeft >= loopWidth) track.scrollLeft -= loopWidth;
+          }
+          pos = track.scrollLeft;
+        }
+      }, { passive: true });
+
+      // Auto-scroll loop (float accumulator; mobile rounds scrollLeft to whole px)
       function frame() {
-        if (started && !isHover && !isPressing && loopWidth > 0) {
+        if (started && loopWidth > 0 && !hovering && (Date.now() - lastInput > PAUSE_MS)) {
           pos += SPEED;
-          if (pos >= loopWidth) pos -= loopWidth;   // seamless wrap
+          if (pos >= loopWidth) pos -= loopWidth;
           track.scrollLeft = pos;
           updateFades();
-        } else {
-          pos = track.scrollLeft; // stay in sync while paused / dragging
         }
         requestAnimationFrame(frame);
       }
-      // Pause only when the cursor is over an actual review card,
-      // not when it's in the gaps between them.
-      track.addEventListener('mouseover', function (e) {
-        isHover = !!(e.target.closest && e.target.closest('.hero-review-chip'));
-      });
-      track.addEventListener('mouseleave', function () { isHover = false; });
-      track.addEventListener('pointerdown', function () { isPressing = true; });
-      window.addEventListener('pointerup', function () { isPressing = false; });
-      setTimeout(function () { started = true; refreshAuto(); }, 3000);
+      setTimeout(function () { started = true; pos = track.scrollLeft; }, 3000);
       requestAnimationFrame(frame);
+      updateFades();
     })();
 
     // ── Vanilla JS date picker calendar
@@ -3351,68 +3336,67 @@
       window.addEventListener('resize', function () { measure(); updateScale(); });
       window.addEventListener('load', function () { measure(); updateScale(); });
 
-      let pos = 0; // float accumulator (mobile rounds scrollLeft to whole px)
+      const PAUSE_MS = 1500;        // pause auto after any user input
+      let pos = 0, lastInput = -99999, hovering = false, moved = 0;
+      function noteInput() { lastInput = Date.now(); }
+
+      // auto-scroll loop (float accumulator; mobile rounds scrollLeft to whole px)
       (function loop() {
-        if (!isHover && !isPressing && loopWidth > 0) {
+        if (loopWidth > 0 && !hovering && (Date.now() - lastInput > PAUSE_MS)) {
           pos += SPEED;
           if (pos >= loopWidth) pos -= loopWidth;
           track.scrollLeft = pos;
-        } else {
-          pos = track.scrollLeft; // stay in sync while paused / dragging / wheeling
         }
         updateScale();
         requestAnimationFrame(loop);
       })();
 
-      // pause only when hovering an actual photo, not the gaps
-      track.addEventListener('mouseover', function (e) { isHover = !!(e.target.closest && e.target.closest('.gallery-item')); });
-      track.addEventListener('mouseleave', function () { isHover = false; });
+      // desktop hover pause (no effect on touch)
+      track.addEventListener('mouseover', function (e) { hovering = !!(e.target.closest && e.target.closest('.gallery-item')); });
+      track.addEventListener('mouseleave', function () { hovering = false; });
 
-      // drag / swipe to scroll
+      // Mouse drag (touch is handled natively by the browser via touch-action: pan-x)
+      let mdrag = false, sx = 0, ss = 0;
       track.addEventListener('pointerdown', function (e) {
-        isPressing = true; dragged = false; startX = e.clientX; startScroll = track.scrollLeft;
+        noteInput(); moved = 0;
+        if (e.pointerType === 'mouse') { mdrag = true; sx = e.clientX; ss = track.scrollLeft; track.classList.add('dragging'); }
       });
       track.addEventListener('pointermove', function (e) {
-        if (!isPressing) return;
-        const dx = e.clientX - startX;
-        if (!dragged && Math.abs(dx) > 4) { dragged = true; track.classList.add('dragging'); }
-        if (dragged) {
-          let target = startScroll - dx;
-          // wrap so dragging is endless in BOTH directions
-          if (loopWidth > 0) {
-            while (target < 0) { target += loopWidth; startScroll += loopWidth; }
-            while (target >= loopWidth) { target -= loopWidth; startScroll -= loopWidth; }
-          }
-          track.scrollLeft = target;
-        }
+        if (!mdrag) return;
+        noteInput();
+        const dx = e.clientX - sx; moved = Math.abs(dx);
+        let target = ss - dx;
+        if (loopWidth > 0) { while (target < 0) { target += loopWidth; ss += loopWidth; } while (target >= loopWidth) { target -= loopWidth; ss -= loopWidth; } }
+        track.scrollLeft = target; pos = target;
       });
-      track.addEventListener('pointerup', function (e) {
-        if (!isPressing) return;
-        isPressing = false;
-        track.classList.remove('dragging');
-        if (!dragged) {
-          const it = e.target.closest ? e.target.closest('.gallery-item') : null;
-          if (it && it.dataset.index != null) openLightbox(parseInt(it.dataset.index, 10));
-        }
+      window.addEventListener('pointerup', function () { if (mdrag) { mdrag = false; track.classList.remove('dragging'); } });
+
+      // Tap / click a photo to open the lightbox (a drag won't trigger it)
+      track.addEventListener('click', function (e) {
+        if (moved > 6) { moved = 0; return; }
+        const it = e.target.closest ? e.target.closest('.gallery-item') : null;
+        if (it && it.dataset.index != null) openLightbox(parseInt(it.dataset.index, 10));
       });
-      track.addEventListener('pointercancel', function () { isPressing = false; dragged = false; track.classList.remove('dragging'); });
-      // wrap flick / momentum scrolling so it loops endlessly left and right
+
+      // User / native (touch, momentum) scroll: pause auto, wrap endlessly both ways
       track.addEventListener('scroll', function () {
-        if (loopWidth <= 0 || isPressing) return;
-        if (track.scrollLeft >= loopWidth) track.scrollLeft -= loopWidth;
-        else if (track.scrollLeft <= 0) track.scrollLeft += loopWidth;
-      }, { passive: true });
-      // Only a sideways (horizontal) wheel/swipe moves the strip; vertical
-      // scrolling passes through to the page as normal.
-      track.addEventListener('wheel', function (e) {
-        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return; // vertical -> let the page scroll
-        e.preventDefault();
-        let target = track.scrollLeft + e.deltaX;
-        if (loopWidth > 0) {
-          if (target < 0) target += loopWidth;
-          else if (target >= loopWidth) target -= loopWidth;
+        if (Date.now() - lastInput < PAUSE_MS) {
+          noteInput();
+          if (loopWidth > 0) {
+            if (track.scrollLeft <= 0) track.scrollLeft += loopWidth;
+            else if (track.scrollLeft >= loopWidth) track.scrollLeft -= loopWidth;
+          }
+          pos = track.scrollLeft;
         }
-        track.scrollLeft = target;
+      }, { passive: true });
+
+      // Horizontal wheel/trackpad scrolls the strip; vertical scrolls the page
+      track.addEventListener('wheel', function (e) {
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+        e.preventDefault(); noteInput();
+        let target = track.scrollLeft + e.deltaX;
+        if (loopWidth > 0) { if (target < 0) target += loopWidth; else if (target >= loopWidth) target -= loopWidth; }
+        track.scrollLeft = target; pos = target;
       }, { passive: false });
 
       document.getElementById('lbClose').addEventListener('click', closeLightbox);
