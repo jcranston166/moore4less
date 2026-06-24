@@ -278,7 +278,7 @@
       grid-auto-flow: column;
       grid-template-rows: repeat(2, auto);
       grid-auto-columns: 320px;
-      gap: 14px 16px;
+      gap: 14px 0;
       width: max-content;
       padding: 16px 0;
       animation: reviewsMarquee var(--rev-dur, 60s) linear infinite;
@@ -286,7 +286,7 @@
     }
     @keyframes reviewsMarquee {
       from { transform: translateX(0); }
-      to   { transform: translateX(calc(-1 * var(--rev-shift, 50%))); }
+      to   { transform: translateX(-50%); }
     }
     .hero-reviews-carousel:hover .hero-reviews { animation-play-state: paused; }
     @media (prefers-reduced-motion: reduce) { .hero-reviews { animation: none; } }
@@ -325,6 +325,7 @@
       scroll-snap-align: start;
       flex-shrink: 0;
       width: 320px;
+      margin-right: 16px;       /* column spacing lives on the card so the 50% loop is seamless */
       background: transparent;
       border: none;
       border-radius: 16px;
@@ -1895,6 +1896,41 @@
       .nav-actions { display: none; }
       #navbar { padding: 0 16px; }
     }
+    /* navbar hides on scroll-down, shows on scroll-up */
+    #navbar { transition: transform 0.3s ease, background 0.3s; }
+    #navbar.nav-hidden { transform: translateY(-100%); }
+    /* mobile bottom call-to-action bar */
+    .mobile-cta { display: none; }
+    @media (max-width: 768px) {
+      .mobile-cta {
+        display: flex;
+        gap: 10px;
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+        background: rgba(10,10,10,0.94);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+        border-top: 1px solid rgba(255,255,255,0.12);
+        z-index: 1200;
+        transform: translateY(115%);
+        transition: transform 0.3s ease;
+      }
+      .mobile-cta.show { transform: translateY(0); }
+      .mcta-btn {
+        flex: 1;
+        display: flex; align-items: center; justify-content: center; gap: 7px;
+        padding: 13px 8px;
+        border-radius: 12px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 800;
+        font-size: 14px;
+        text-decoration: none;
+      }
+      .mcta-call { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.25); }
+      .mcta-quote { background: var(--orange); color: #fff; }
+      #float-call { display: none !important; } /* replaced by the bottom bar */
+    }
     @media (max-width: 600px) {
       .hero-inner { padding: 96px 18px 48px; gap: 30px; }
       .hero-title { letter-spacing: -1px; }
@@ -1903,8 +1939,8 @@
       .hero-ctas .btn-lg { padding: 14px 22px; font-size: 15px; }
       /* keep the reviews strip from sliding off the left edge + smaller, tidy cards */
       .hero-reviews-carousel { margin-left: 0 !important; }
-      .hero-reviews { grid-auto-columns: 240px; gap: 12px; }
-      .hero-review-chip { width: 240px; padding: 14px 16px; border-radius: 14px; }
+      .hero-reviews { grid-auto-columns: 240px; gap: 12px 0; }
+      .hero-review-chip { width: 240px; margin-right: 14px; padding: 14px 16px; border-radius: 14px; }
       .hero-review-chip .hero-review-stars { font-size: 13px; letter-spacing: 2px; margin-bottom: 8px; }
       .hero-review-chip .hero-review-quote { font-size: 12.5px; line-height: 1.5; margin-bottom: 9px; }
       .hero-review-chip .hero-review-name { font-size: 11.5px; }
@@ -2030,15 +2066,16 @@
       grid-auto-flow: column;
       grid-template-rows: repeat(2, auto);
       grid-auto-columns: 240px;
-      gap: 12px;
+      gap: 12px 0;
       width: max-content;
       padding: 14px 0;
       animation: galleryMarquee var(--gal-dur, 80s) linear infinite;
       will-change: transform;
     }
+    .gallery-item { margin-right: 12px; }   /* column spacing on the card → seamless 50% loop */
     @keyframes galleryMarquee {
       from { transform: translateX(0); }
-      to   { transform: translateX(calc(-1 * var(--gal-shift, 50%))); }
+      to   { transform: translateX(-50%); }
     }
     .gallery-viewport:hover .gallery-grid { animation-play-state: paused; }
     @media (prefers-reduced-motion: reduce) { .gallery-grid { animation: none; } }
@@ -2194,8 +2231,8 @@
     }
     .gallery-item:hover::after { box-shadow: inset 0 0 0 3px var(--orange); }
     @media (max-width: 600px) {
-      .gallery-grid { grid-auto-columns: 200px; gap: 10px; }
-      .gallery-item { width: 200px; height: 150px; }
+      .gallery-grid { grid-auto-columns: 200px; gap: 10px 0; }
+      .gallery-item { width: 200px; height: 150px; margin-right: 10px; }
     }
     /* Lightbox */
     .lightbox {
@@ -2837,6 +2874,11 @@
   <a href="tel:+15745002275" id="float-call" aria-label="Call Us">
     <i class="fas fa-phone"></i>
   </a>
+  <!-- ─── MOBILE BOTTOM CTA (appears when scrolling down) ─── -->
+  <div class="mobile-cta" id="mobileCta">
+    <a href="tel:+15745002275" class="mcta-btn mcta-call"><i class="fas fa-phone"></i> Call Us Now</a>
+    <a href="#quote" class="mcta-btn mcta-quote"><i class="fas fa-clipboard-check"></i> Get My Free Quote</a>
+  </div>
   <!-- ─── SCRIPTS ─── -->
   <script>
     // ── Multi-select service cards → chips in quote form (no scroll)
@@ -2999,13 +3041,31 @@
       });
     });
 
-    // ── Sticky nav shadow on scroll
-    window.addEventListener('scroll', () => {
+    // ── Sticky nav shadow + hide-on-scroll-down / show-on-scroll-up (mobile) + bottom CTA
+    (function () {
       const nav = document.getElementById('navbar');
-      nav.style.boxShadow = window.scrollY > 20
-        ? '0 4px 32px rgba(0,0,0,0.5)'
-        : '0 2px 20px rgba(0,0,0,0.4)';
-    });
+      const bar = document.getElementById('mobileCta');
+      let lastY = window.scrollY || 0;
+      window.addEventListener('scroll', function () {
+        const y = window.scrollY || 0;
+        nav.style.boxShadow = y > 20 ? '0 4px 32px rgba(0,0,0,0.5)' : '0 2px 20px rgba(0,0,0,0.4)';
+        const dy = y - lastY;
+        const mobile = window.innerWidth <= 768;
+        if (mobile && y > 140) {
+          if (dy > 4) {                 // scrolling down → hide menu, show quote/call bar
+            nav.classList.add('nav-hidden');
+            if (bar) bar.classList.add('show');
+          } else if (dy < -4) {         // scrolling up → show menu, hide bar
+            nav.classList.remove('nav-hidden');
+            if (bar) bar.classList.remove('show');
+          }
+        } else {                        // at the top or on desktop → normal
+          nav.classList.remove('nav-hidden');
+          if (bar) bar.classList.remove('show');
+        }
+        lastY = y;
+      }, { passive: true });
+    })();
     // ── Hero reviews: seamless CSS marquee (auto-scrolls via CSS animation —
     //    works reliably on mobile; no dependency on scrollLeft)
     (function () {
@@ -3016,13 +3076,8 @@
       originals.forEach(function (ch) { track.appendChild(ch.cloneNode(true)); });
 
       function setup() {
-        const chips = track.querySelectorAll('.hero-review-chip');
-        if (chips.length <= originals.length) return;
-        const shift = chips[originals.length].offsetLeft - chips[0].offsetLeft; // width of one full set
-        if (shift > 0) {
-          track.style.setProperty('--rev-shift', shift + 'px');
-          track.style.setProperty('--rev-dur', Math.max(20, Math.round(shift / 45)) + 's'); // ~45px/sec
-        }
+        const half = track.offsetWidth / 2; // one full set (content is duplicated)
+        if (half > 0) track.style.setProperty('--rev-dur', Math.max(20, Math.round(half / 45)) + 's'); // ~45px/sec
       }
       setup();
       window.addEventListener('load', setup);
@@ -3213,13 +3268,8 @@
 
       // Size the CSS marquee: set the exact one-set shift distance + a speed
       function measure() {
-        const items = track.children;
-        if (items.length <= order.length) return;
-        const shift = items[order.length].offsetLeft - items[0].offsetLeft; // one full set
-        if (shift > 0) {
-          track.style.setProperty('--gal-shift', shift + 'px');
-          track.style.setProperty('--gal-dur', Math.max(28, Math.round(shift / 45)) + 's'); // ~45px/sec
-        }
+        const half = track.offsetWidth / 2; // one full set (content is duplicated)
+        if (half > 0) track.style.setProperty('--gal-dur', Math.max(28, Math.round(half / 45)) + 's'); // ~45px/sec
       }
       buildTrack();             // builds items + clones, then calls measure()
       window.addEventListener('load', measure);
