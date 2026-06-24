@@ -3062,8 +3062,9 @@
       const PAUSE_MS = 1500;      // pause auto-scroll this long after any user input
       let pos = 0, started = false, lastInput = -99999, hovering = false;
       function noteInput() { lastInput = Date.now(); if (col) col.classList.add('interacted'); }
-      track.addEventListener('mouseover', function (e) { hovering = !!(e.target.closest && e.target.closest('.hero-review-chip')); });
-      track.addEventListener('mouseleave', function () { hovering = false; });
+      // mouse-only hover pause (touch never sets this, so it can't get stuck)
+      track.addEventListener('pointerover', function (e) { if (e.pointerType === 'mouse') hovering = !!(e.target.closest && e.target.closest('.hero-review-chip')); });
+      track.addEventListener('pointerout', function (e) { if (e.pointerType === 'mouse') hovering = false; });
 
       // Arrow buttons
       function chipStep() {
@@ -3113,6 +3114,7 @@
 
       // Auto-scroll loop (float accumulator; mobile rounds scrollLeft to whole px)
       function frame() {
+        if (!loopWidth) measureLoop();
         if (started && loopWidth > 0 && !hovering && (Date.now() - lastInput > PAUSE_MS)) {
           pos += SPEED;
           if (pos >= loopWidth) pos -= loopWidth;
@@ -3342,6 +3344,7 @@
 
       // auto-scroll loop (float accumulator; mobile rounds scrollLeft to whole px)
       (function loop() {
+        if (!loopWidth) measure();
         if (loopWidth > 0 && !hovering && (Date.now() - lastInput > PAUSE_MS)) {
           pos += SPEED;
           if (pos >= loopWidth) pos -= loopWidth;
@@ -3351,9 +3354,9 @@
         requestAnimationFrame(loop);
       })();
 
-      // desktop hover pause (no effect on touch)
-      track.addEventListener('mouseover', function (e) { hovering = !!(e.target.closest && e.target.closest('.gallery-item')); });
-      track.addEventListener('mouseleave', function () { hovering = false; });
+      // mouse-only hover pause (touch never sets this, so it can't get stuck)
+      track.addEventListener('pointerover', function (e) { if (e.pointerType === 'mouse') hovering = !!(e.target.closest && e.target.closest('.gallery-item')); });
+      track.addEventListener('pointerout', function (e) { if (e.pointerType === 'mouse') hovering = false; });
 
       // Mouse drag (touch is handled natively by the browser via touch-action: pan-x)
       let mdrag = false, sx = 0, ss = 0;
