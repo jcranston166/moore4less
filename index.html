@@ -1591,20 +1591,65 @@
       .cta-buttons { flex-direction: column; align-items: center; }
       .footer-bottom { flex-direction: column; text-align: center; }
     }
-    /* Success message */
+    /* Success / "All done" screen */
     .form-success {
       display: none;
       text-align: center;
-      padding: 20px;
-      background: #ECFDF5;
-      border: 2px solid #10B981;
-      border-radius: 12px;
+      padding: 36px 22px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(249,115,22,0.35);
+      border-radius: 16px;
       margin-top: 12px;
-      color: #065F46;
-      font-weight: 600;
-      font-size: 15px;
     }
-    .form-success i { color: #10B981; font-size: 24px; display: block; margin-bottom: 8px; }
+    .success-badge {
+      width: 90px; height: 90px;
+      border-radius: 50%;
+      background: var(--orange);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+      animation: successPop 0.55s cubic-bezier(0.18, 0.9, 0.25, 1.4) both,
+                 successGlow 2s ease-in-out 0.55s infinite;
+    }
+    @keyframes successPop {
+      0%   { transform: scale(0); opacity: 0; }
+      60%  { transform: scale(1.18); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes successGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(249,115,22,0.45); }
+      50%      { box-shadow: 0 0 26px 7px rgba(249,115,22,0.4); }
+    }
+    .success-check { width: 50px; height: 50px; }
+    .success-check .sc-check {
+      fill: none;
+      stroke: #fff;
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      animation: scDraw 0.4s 0.45s ease forwards;
+    }
+    @keyframes scDraw { to { stroke-dashoffset: 0; } }
+    .success-title {
+      font-size: 23px;
+      font-weight: 900;
+      color: var(--white);
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      animation: successFade 0.5s 0.5s ease both;
+    }
+    .success-msg {
+      font-size: 14px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.55;
+      animation: successFade 0.5s 0.65s ease both;
+    }
+    @keyframes successFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) {
+      .success-badge, .success-title, .success-msg { animation: none !important; }
+      .success-check .sc-check { animation: none !important; stroke-dashoffset: 0; }
+    }
 
     /* ─────────────────────────────────────────────
        EYE-CATCHING POLISH
@@ -1877,15 +1922,20 @@
       #navbar { padding: 0 16px; }
     }
     @media (max-width: 600px) {
+      /* show everything instantly on phones — no waiting on the scroll-reveal */
+      .js .fade-up { opacity: 1 !important; transform: none !important; transition: none !important; }
       .hero-inner { padding: 96px 18px 48px; gap: 30px; }
       .hero-title { letter-spacing: -1px; }
       .hero-subtitle { font-size: 16px; }
       .hero-stats { gap: 16px 22px; }
       .hero-ctas .btn-lg { padding: 14px 22px; font-size: 15px; }
-      /* keep the reviews strip from sliding off the left edge */
+      /* keep the reviews strip from sliding off the left edge + smaller, tidy cards */
       .hero-reviews-carousel { margin-left: 0 !important; }
-      .hero-reviews { grid-auto-columns: 84vw; }
-      .hero-review-chip { width: 84vw; }
+      .hero-reviews { grid-auto-columns: 240px; gap: 12px; }
+      .hero-review-chip { width: 240px; padding: 14px 16px; border-radius: 14px; }
+      .hero-review-chip .hero-review-stars { font-size: 13px; letter-spacing: 2px; margin-bottom: 8px; }
+      .hero-review-chip .hero-review-quote { font-size: 12.5px; line-height: 1.5; margin-bottom: 9px; }
+      .hero-review-chip .hero-review-name { font-size: 11.5px; }
       /* trust badges wrap cleanly without the dividers */
       .trust-inner { gap: 12px 18px; }
       .trust-divider { display: none; }
@@ -2368,7 +2418,7 @@
           </div>
         </div>
         <a href="https://g.page/r/review" target="_blank" style="display:inline-flex;align-items:center;gap:6px;color:var(--orange);font-size:13px;font-weight:600;text-decoration:none;margin-top:4px;transition:gap 0.2s;">
-          <i class="fab fa-google"></i> See all reviews on Google <i class="fas fa-arrow-right" style="font-size:11px;"></i>
+          <i class="fab fa-google"></i> Show all reviews <i class="fas fa-arrow-right" style="font-size:11px;"></i>
         </a>
       </div>
     </div>
@@ -2528,8 +2578,13 @@
           </div>
         </form>
         <div class="form-success" id="formSuccess">
-          <i class="fas fa-check-circle"></i>
-          Request sent! We'll call you within the hour with your free quote.
+          <div class="success-badge">
+            <svg class="success-check" viewBox="0 0 52 52" aria-hidden="true">
+              <path class="sc-check" d="M14 27l8 8 16-16" />
+            </svg>
+          </div>
+          <h3 class="success-title">You're All Done!</h3>
+          <p class="success-msg">Your request is in — we'll call you within the hour with your free quote. Thanks for choosing Moore 4 Less!</p>
         </div>
       </div>
         </div>
@@ -3056,6 +3111,7 @@
       // Hovering / pressing freezes it in place (snapping stays off so it
       // never jumps back).
       let started = false, isHover = false, isPressing = false;
+      let pos = 0; // float accumulator (mobile rounds scrollLeft to whole px)
       const SPEED = 0.4; // px per frame (~24px/sec)
       function refreshAuto() {
         // keep snapping disabled the whole time it's animating so a pause
@@ -3064,10 +3120,12 @@
       }
       function frame() {
         if (started && !isHover && !isPressing && loopWidth > 0) {
-          let nx = track.scrollLeft + SPEED;
-          if (nx >= loopWidth) nx -= loopWidth;   // seamless wrap
-          track.scrollLeft = nx;
+          pos += SPEED;
+          if (pos >= loopWidth) pos -= loopWidth;   // seamless wrap
+          track.scrollLeft = pos;
           updateFades();
+        } else {
+          pos = track.scrollLeft; // stay in sync while paused / dragging
         }
         requestAnimationFrame(frame);
       }
@@ -3293,11 +3351,14 @@
       window.addEventListener('resize', function () { measure(); updateScale(); });
       window.addEventListener('load', function () { measure(); updateScale(); });
 
+      let pos = 0; // float accumulator (mobile rounds scrollLeft to whole px)
       (function loop() {
         if (!isHover && !isPressing && loopWidth > 0) {
-          let nx = track.scrollLeft + SPEED;
-          if (nx >= loopWidth) nx -= loopWidth;
-          track.scrollLeft = nx;
+          pos += SPEED;
+          if (pos >= loopWidth) pos -= loopWidth;
+          track.scrollLeft = pos;
+        } else {
+          pos = track.scrollLeft; // stay in sync while paused / dragging / wheeling
         }
         updateScale();
         requestAnimationFrame(loop);
